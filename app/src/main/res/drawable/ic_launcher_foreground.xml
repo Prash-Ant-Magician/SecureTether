@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Shackle (Teal) -->
+    <path
+        android:strokeColor="#03DAC5"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M44,52V42c0,-5.5 4.5,-10 10,-10s10,4.5 10,10v10" />
+
+    <!-- Lock Body (Dark Grey) -->
+    <path
+        android:fillColor="#2C2C2C"
+        android:pathData="M34,52h40v28c0,4.4 -3.6,8 -8,8h-24c0,-4.4 -3.6,-8 -8,-8V52z" />
+
+    <!-- Glowing Dot (Teal) -->
+    <path
+        android:fillColor="#03DAC5"
+        android:pathData="M54,70m-3,0a3,3 0 1,1 6,0a3,3 0 1,1 -6,0" />
+
+</vector>
