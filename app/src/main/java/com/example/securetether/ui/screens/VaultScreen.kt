@@ -1,10 +1,12 @@
 package com.example.securetether.ui.screens
 
+import android.Manifest
 import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -38,6 +40,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
@@ -47,6 +50,7 @@ import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,6 +71,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,8 +89,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.securetether.R
 import com.example.securetether.domain.model.VaultFile
+import com.example.securetether.ui.viewmodel.BluetoothViewModel
 
 import com.example.securetether.ui.viewmodel.VaultUiState
 import com.example.securetether.ui.viewmodel.VaultViewModel
@@ -95,11 +102,37 @@ import java.io.FileOutputStream
 @Composable
 fun VaultScreen(
     viewModel: VaultViewModel,
+    bluetoothViewModel: BluetoothViewModel = viewModel(),
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingDeleteUri by viewModel.pendingDeleteUri.collectAsStateWithLifecycle()
+    val bluetoothState by bluetoothViewModel.state.collectAsStateWithLifecycle()
+
+    var showDiscoveryDialog by remember { mutableStateOf(false) }
+
+    val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        listOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE
+        )
+    } else {
+        listOf(
+            Manifest.permission.BLUETOOTH,
+            Manifest.permission.BLUETOOTH_ADMIN,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) {
+            showDiscoveryDialog = true
+        }
+    }
 
     VaultScreenContent(
         uiState = uiState,
@@ -114,8 +147,47 @@ fun VaultScreen(
         onClearExportMessage = { viewModel.clearExportMessage() },
         onDeletionPermissionHandled = { viewModel.onDeletionPermissionHandled() },
         loadThumbnail = { viewModel.loadThumbnail(it) },
+        onShareBluetooth = {
+            permissionLauncher.launch(bluetoothPermissions.toTypedArray())
+        },
         modifier = modifier
     )
+
+    if (showDiscoveryDialog) {
+        DeviceDiscoveryDialog(
+            scannedDevices = bluetoothState.scannedDevices,
+            pairedDevices = bluetoothState.pairedDevices,
+            onDeviceClick = { device ->
+                bluetoothViewModel.connectToDevice(device)
+            },
+            onStartDiscovery = { bluetoothViewModel.startDiscovery() },
+            onStopDiscovery = { bluetoothViewModel.stopDiscovery() },
+            onDismiss = { showDiscoveryDialog = false }
+        )
+    }
+
+    LaunchedEffect(bluetoothState.isConnected) {
+        if (bluetoothState.isConnected && showDiscoveryDialog) {
+            uiState.viewingFile?.let { file ->
+                uiState.decryptedData?.let { data ->
+                    bluetoothViewModel.sharePhoto(file.displayName, file.mimeType, data)
+                }
+            }
+            showDiscoveryDialog = false
+        }
+    }
+
+    bluetoothState.incomingPhoto?.let { photo ->
+        SharedPhotoViewer(
+            photo = photo,
+            onClose = { bluetoothViewModel.clearIncomingPhoto() }
+        )
+    }
+
+    // Start server automatically to listen for incoming shares
+    LaunchedEffect(Unit) {
+        bluetoothViewModel.startServer()
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -133,6 +205,7 @@ fun VaultScreenContent(
     onClearExportMessage: () -> Unit,
     onDeletionPermissionHandled: () -> Unit,
     loadThumbnail: suspend (VaultFile) -> Bitmap?,
+    onShareBluetooth: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -287,6 +360,7 @@ fun VaultScreenContent(
                 onCloseFile()
             },
             onExport = { onExportFile(uiState.viewingFile) },
+            onShareBluetooth = onShareBluetooth,
             snackbarHostState = snackbarHostState
         )
     }
@@ -390,6 +464,7 @@ fun FileViewerDialog(
     onClose: () -> Unit,
     onDelete: () -> Unit,
     onExport: () -> Unit,
+    onShareBluetooth: () -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -408,6 +483,15 @@ fun FileViewerDialog(
                         }
                     },
                     actions = {
+                        if (file.mimeType.startsWith("image/")) {
+                            IconButton(onClick = onShareBluetooth) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Share,
+                                    contentDescription = "Share via Bluetooth",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                         IconButton(onClick = onExport) {
                             Icon(
                                 imageVector = Icons.Rounded.FileDownload,
