@@ -8,11 +8,9 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import com.example.securetether.ui.screens.AuthScreen
-import com.example.securetether.ui.screens.SettingsScreen
-import com.example.securetether.ui.screens.SplashScreen
-import com.example.securetether.ui.screens.VaultScreen
+import com.example.securetether.ui.screens.*
 import com.example.securetether.ui.viewmodel.AuthViewModel
+import com.example.securetether.ui.viewmodel.BluetoothViewModel
 import com.example.securetether.ui.viewmodel.SettingsViewModel
 import com.example.securetether.ui.viewmodel.SplashViewModel
 import com.example.securetether.ui.viewmodel.VaultViewModel
@@ -72,8 +70,10 @@ fun SecureTetherNavHost(
                 }
                 is Route.Vault -> NavEntry(key) {
                     val viewModel: VaultViewModel = hiltViewModel()
+                    val bluetoothViewModel: BluetoothViewModel = hiltViewModel()
                     VaultScreen(
                         viewModel = viewModel,
+                        bluetoothViewModel = bluetoothViewModel,
                         onNavigateToSettings = { backStack.add(Route.Settings) }
                     )
                 }
@@ -86,8 +86,10 @@ fun SecureTetherNavHost(
                 }
                 else -> NavEntry(key) {
                     val viewModel: VaultViewModel = hiltViewModel()
+                    val bluetoothViewModel: BluetoothViewModel = hiltViewModel()
                     VaultScreen(
                         viewModel = viewModel,
+                        bluetoothViewModel = bluetoothViewModel,
                         onNavigateToSettings = { backStack.add(Route.Settings) }
                     )
                 }
