@@ -157,12 +157,17 @@ fun VaultScreen(
         DeviceDiscoveryDialog(
             scannedDevices = bluetoothState.scannedDevices,
             pairedDevices = bluetoothState.pairedDevices,
+            isConnecting = bluetoothState.isConnecting,
+            errorMessage = bluetoothState.errorMessage,
             onDeviceClick = { device ->
                 bluetoothViewModel.connectToDevice(device)
             },
             onStartDiscovery = { bluetoothViewModel.startDiscovery() },
             onStopDiscovery = { bluetoothViewModel.stopDiscovery() },
-            onDismiss = { showDiscoveryDialog = false }
+            onDismiss = { 
+                showDiscoveryDialog = false 
+                bluetoothViewModel.clearError()
+            }
         )
     }
 
