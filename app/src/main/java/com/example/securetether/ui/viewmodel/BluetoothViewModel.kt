@@ -37,12 +37,14 @@ data class SharedPhoto(
         if (javaClass != other?.javaClass) return false
         other as SharedPhoto
         if (fileName != other.fileName) return false
+        if (mimeType != other.mimeType) return false
         if (!data.contentEquals(other.data)) return false
         return true
     }
 
     override fun hashCode(): Int {
         var result = fileName.hashCode()
+        result = 31 * result + mimeType.hashCode()
         result = 31 * result + data.contentHashCode()
         return result
     }
@@ -57,11 +59,13 @@ class BluetoothViewModel @Inject constructor(
     val state = combine(
         bluetoothController.scannedDevices,
         bluetoothController.pairedDevices,
+        bluetoothController.isConnected,
         _state
-    ) { scannedDevices, pairedDevices, state ->
+    ) { scannedDevices, pairedDevices, isConnected, state ->
         state.copy(
             scannedDevices = scannedDevices,
-            pairedDevices = pairedDevices
+            pairedDevices = pairedDevices,
+            isConnected = isConnected
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), _state.value)
 
@@ -74,10 +78,17 @@ class BluetoothViewModel @Inject constructor(
     }
 
     fun connectToDevice(device: BluetoothDeviceDomain) {
-        _state.update { it.copy(isConnecting = true) }
+        _state.update { it.copy(isConnecting = true, errorMessage = null) }
         bluetoothController.connectToDevice(device).onEach { message ->
             handleBluetoothMessage(message)
         }.launchIn(viewModelScope)
+    }
+
+    fun disconnect() {
+        viewModelScope.launch {
+            bluetoothController.closeConnection()
+            _state.update { it.copy(isConnected = false, isConnecting = false) }
+        }
     }
 
     fun startServer() {
