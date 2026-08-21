@@ -104,13 +104,12 @@ fun VaultScreen(
     viewModel: VaultViewModel,
     bluetoothViewModel: BluetoothViewModel = viewModel(),
     onNavigateToSettings: () -> Unit,
+    onNavigateToTransfer: (List<String>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingDeleteUri by viewModel.pendingDeleteUri.collectAsStateWithLifecycle()
     val bluetoothState by bluetoothViewModel.state.collectAsStateWithLifecycle()
-
-    var showDiscoveryDialog by remember { mutableStateOf(false) }
 
     val bluetoothPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         listOf(
@@ -130,7 +129,17 @@ fun VaultScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.values.all { it }) {
-            showDiscoveryDialog = true
+            uiState.viewingFile?.let { file ->
+                onNavigateToTransfer(listOf(file.id))
+            }
+        }
+    }
+
+    val permissionLauncherNearby = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) {
+            onNavigateToTransfer(emptyList())
         }
     }
 
@@ -150,37 +159,11 @@ fun VaultScreen(
         onShareBluetooth = {
             permissionLauncher.launch(bluetoothPermissions.toTypedArray())
         },
+        onNavigateToNearbyShare = {
+            permissionLauncherNearby.launch(bluetoothPermissions.toTypedArray())
+        },
         modifier = modifier
     )
-
-    if (showDiscoveryDialog) {
-        DeviceDiscoveryDialog(
-            scannedDevices = bluetoothState.scannedDevices,
-            pairedDevices = bluetoothState.pairedDevices,
-            isConnecting = bluetoothState.isConnecting,
-            errorMessage = bluetoothState.errorMessage,
-            onDeviceClick = { device ->
-                bluetoothViewModel.connectToDevice(device)
-            },
-            onStartDiscovery = { bluetoothViewModel.startDiscovery() },
-            onStopDiscovery = { bluetoothViewModel.stopDiscovery() },
-            onDismiss = { 
-                showDiscoveryDialog = false 
-                bluetoothViewModel.clearError()
-            }
-        )
-    }
-
-    LaunchedEffect(bluetoothState.isConnected) {
-        if (bluetoothState.isConnected && showDiscoveryDialog) {
-            uiState.viewingFile?.let { file ->
-                uiState.decryptedData?.let { data ->
-                    bluetoothViewModel.sharePhoto(file.displayName, file.mimeType, data)
-                }
-            }
-            showDiscoveryDialog = false
-        }
-    }
 
     bluetoothState.incomingPhoto?.let { photo ->
         SharedPhotoViewer(
@@ -211,6 +194,7 @@ fun VaultScreenContent(
     onDeletionPermissionHandled: () -> Unit,
     loadThumbnail: suspend (VaultFile) -> Bitmap?,
     onShareBluetooth: () -> Unit,
+    onNavigateToNearbyShare: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -270,6 +254,9 @@ fun VaultScreenContent(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToNearbyShare) {
+                        Icon(Icons.Rounded.Bluetooth, contentDescription = "Nearby Share")
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Rounded.Settings, contentDescription = "Settings")
                     }
