@@ -32,6 +32,8 @@ class SettingsRepositoryImpl @Inject constructor(
         val STEALTH_MODE_ENABLED = booleanPreferencesKey("stealth_mode_enabled")
         val THEME_MODE = intPreferencesKey("theme_mode")
         val EXPORT_PATH = stringPreferencesKey("export_path")
+        val DEVICE_NAME = stringPreferencesKey("device_name")
+        val DEVICE_ID = stringPreferencesKey("device_id")
     }
 
     override val biometricEnabled: Flow<Boolean> = context.dataStore.data
@@ -69,6 +71,20 @@ class SettingsRepositoryImpl @Inject constructor(
             preferences[PreferencesKeys.EXPORT_PATH] ?: "Documents/SecureTether"
         }
 
+    override val deviceName: Flow<String> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }.map { preferences ->
+            preferences[PreferencesKeys.DEVICE_NAME] ?: android.os.Build.MODEL
+        }
+
+    override val deviceId: Flow<String> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }.map { preferences ->
+            preferences[PreferencesKeys.DEVICE_ID] ?: ""
+        }
+
     override suspend fun setBiometricEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.BIOMETRIC_ENABLED] = enabled
@@ -96,6 +112,18 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setExportPath(path: String) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.EXPORT_PATH] = path
+        }
+    }
+
+    override suspend fun setDeviceName(name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.DEVICE_NAME] = name
+        }
+    }
+
+    override suspend fun setDeviceId(id: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.DEVICE_ID] = id
         }
     }
 }
