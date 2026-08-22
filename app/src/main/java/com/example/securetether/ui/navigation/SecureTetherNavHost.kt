@@ -74,7 +74,10 @@ fun SecureTetherNavHost(
                     VaultScreen(
                         viewModel = viewModel,
                         bluetoothViewModel = bluetoothViewModel,
-                        onNavigateToSettings = { backStack.add(Route.Settings) }
+                        onNavigateToSettings = { backStack.add(Route.Settings) },
+                        onNavigateToTransfer = { fileIds -> 
+                            backStack.add(Route.Transfer(fileIds))
+                        }
                     )
                 }
                 is Route.Settings -> NavEntry(key) {
@@ -84,13 +87,24 @@ fun SecureTetherNavHost(
                         onBack = { backStack.removeLastOrNull() }
                     )
                 }
+                is Route.Transfer -> NavEntry(key) {
+                    val viewModel: BluetoothViewModel = hiltViewModel()
+                    TransferScreen(
+                        viewModel = viewModel,
+                        onBack = { backStack.removeLastOrNull() },
+                        fileIds = key.fileIds
+                    )
+                }
                 else -> NavEntry(key) {
                     val viewModel: VaultViewModel = hiltViewModel()
                     val bluetoothViewModel: BluetoothViewModel = hiltViewModel()
                     VaultScreen(
                         viewModel = viewModel,
                         bluetoothViewModel = bluetoothViewModel,
-                        onNavigateToSettings = { backStack.add(Route.Settings) }
+                        onNavigateToSettings = { backStack.add(Route.Settings) },
+                        onNavigateToTransfer = { fileIds -> 
+                            backStack.add(Route.Transfer(fileIds))
+                        }
                     )
                 }
             }

@@ -16,4 +16,7 @@ sealed interface Route : NavKey {
 
     @Serializable
     data object Settings : Route
+
+    @Serializable
+    data class Transfer(val fileIds: List<String> = emptyList()) : Route
 }

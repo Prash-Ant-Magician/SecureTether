@@ -8,10 +8,14 @@ interface SettingsRepository {
     val stealthModeEnabled: Flow<Boolean>
     val themeMode: Flow<Int> // 0: System, 1: Light, 2: Dark
     val exportPath: Flow<String>
+    val deviceName: Flow<String>
+    val deviceId: Flow<String>
 
     suspend fun setBiometricEnabled(enabled: Boolean)
     suspend fun setAutoLockTimer(millis: Long)
     suspend fun setStealthModeEnabled(enabled: Boolean)
     suspend fun setThemeMode(mode: Int)
     suspend fun setExportPath(path: String)
+    suspend fun setDeviceName(name: String)
+    suspend fun setDeviceId(id: String)
 }

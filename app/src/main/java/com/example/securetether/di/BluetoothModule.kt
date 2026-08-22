@@ -3,6 +3,7 @@ package com.example.securetether.di
 import android.content.Context
 import com.example.securetether.data.repository.AndroidBluetoothController
 import com.example.securetether.domain.repository.BluetoothController
+import com.example.securetether.domain.repository.SettingsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -16,7 +17,10 @@ object BluetoothModule {
 
     @Provides
     @Singleton
-    fun provideBluetoothController(@ApplicationContext context: Context): BluetoothController {
-        return AndroidBluetoothController(context)
+    fun provideBluetoothController(
+        @ApplicationContext context: Context,
+        settingsRepository: SettingsRepository
+    ): BluetoothController {
+        return AndroidBluetoothController(context, settingsRepository)
     }
 }

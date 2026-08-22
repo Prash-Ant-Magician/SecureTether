@@ -24,7 +24,11 @@ data class BluetoothUiState(
     val isConnected: Boolean = false,
     val isConnecting: Boolean = false,
     val errorMessage: String? = null,
-    val incomingPhoto: SharedPhoto? = null
+    val incomingPhoto: SharedPhoto? = null,
+    val verificationCode: String? = null,
+    val remoteDeviceName: String? = null,
+    val transferProgress: Float = 0f,
+    val isVerified: Boolean = false
 )
 
 data class SharedPhoto(
@@ -103,14 +107,33 @@ class BluetoothViewModel @Inject constructor(
         when (message) {
             is BluetoothMessage.MetadataReceived -> {
                 currentIncomingMetadata = message.fileName to message.mimeType
+                _state.update { it.copy(transferProgress = 0f) }
+            }
+            is BluetoothMessage.ProgressUpdated -> {
+                val progress = message.bytesSent.toFloat() / message.totalBytes.toFloat()
+                _state.update { it.copy(transferProgress = progress) }
+            }
+            is BluetoothMessage.VerificationRequired -> {
+                _state.update { it.copy(
+                    verificationCode = message.code,
+                    remoteDeviceName = message.deviceName,
+                    isConnecting = false
+                ) }
+            }
+            is BluetoothMessage.ConnectionAccepted -> {
+                _state.update { it.copy(
+                    isConnected = true,
+                    isConnecting = false,
+                    verificationCode = null,
+                    isVerified = true
+                ) }
             }
             is BluetoothMessage.TransferSucceeded -> {
                 val metadata = currentIncomingMetadata
                 if (metadata != null) {
                     _state.update { it.copy(
                         incomingPhoto = SharedPhoto(metadata.first, metadata.second, message.payload),
-                        isConnected = true,
-                        isConnecting = false
+                        transferProgress = 1f
                     ) }
                 }
             }
@@ -118,9 +141,17 @@ class BluetoothViewModel @Inject constructor(
                 _state.update { it.copy(
                     errorMessage = message.message,
                     isConnecting = false,
-                    isConnected = false
+                    isConnected = false,
+                    verificationCode = null
                 ) }
             }
+        }
+    }
+
+    fun verifyConnection(isVerified: Boolean) {
+        bluetoothController.verifyConnection(isVerified)
+        if (!isVerified) {
+            _state.update { it.copy(verificationCode = null) }
         }
     }
 
